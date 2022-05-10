@@ -1,0 +1,441 @@
+        -:    0:Source:/home/andres/Documents/III SEMESTRE/proyectoI_test/Server.cpp
+        -:    0:Graph:Server.cpp.gcno
+        -:    0:Data:Server.cpp.gcda
+        -:    0:Runs:1
+        -:    1:#include <iostream>
+        -:    2:#include <string>
+        -:    3:#include <boost/bind/bind.hpp>
+        -:    4:#include <boost/shared_ptr.hpp>
+        -:    5:#include <boost/enable_shared_from_this.hpp>
+        -:    6:#include <boost/asio.hpp>
+        -:    7:#include <cstring>
+        -:    8:#include <gtest/gtest.h>
+        -:    9:#include <gmock/gmock.h>
+        -:   10:
+        -:   11:using boost::asio::ip::tcp;
+        -:   12:using namespace std;
+        -:   13:using ::testing::AtLeast;
+        -:   14:using::testing::Return;
+        -:   15:using::testing::_;
+        -:   16:
+        -:   17:class Client
+        -:   18:{
+        -:   19:public:
+        -:   20:    virtual char* send_message() = 0;
+        -:   21:    virtual void read_message(string message, int length) = 0;
+        -:   22:};
+        -:   23:
+        -:   24:class MockClient : public Client
+        -:   25:{
+        -:   26:public:
+        6:   27:    MOCK_METHOD(char*, send_message, (), (override));
+------------------
+_ZN10MockClient18gmock_send_messageEv:
+        3:   27:    MOCK_METHOD(char*, send_message, (), (override));
+------------------
+_ZN10MockClient12send_messageEv:
+        3:   27:    MOCK_METHOD(char*, send_message, (), (override));
+------------------
+        6:   28:    MOCK_METHOD(void, read_message, (string message, int length), (override));
+------------------
+_ZN10MockClient18gmock_read_messageERKN7testing7MatcherINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEERKNS1_IiEE:
+        3:   28:    MOCK_METHOD(void, read_message, (string message, int length), (override));
+------------------
+_ZN10MockClient12read_messageENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEi:
+        3:   28:    MOCK_METHOD(void, read_message, (string message, int length), (override));
+------------------
+        -:   29:};
+        -:   30:
+        -:   31:/**
+        -:   32: * Creates the necessary functions to handle socket connections and read/write operations
+        -:   33: *
+        -:   34: */
+        -:   35:class tcp_connection: public boost::enable_shared_from_this<tcp_connection>
+        -:   36:{
+        -:   37:private:
+        -:   38:    tcp::socket socket_;
+        -:   39:    enum {max_length = 1024};
+        -:   40:    char data[7]{};
+        -:   41:    string type;
+        -:   42:
+        -:   43:public:
+        -:   44:    typedef boost::shared_ptr<tcp_connection> pointer;
+        -:   45:
+        6:   46:    explicit tcp_connection(boost::asio::io_context& io_context): socket_(io_context){}
+        -:   47:
+        -:   48:    static pointer create(boost::asio::io_context& io_context) { return pointer(new tcp_connection(io_context)); }
+        -:   49:
+        -:   50:    tcp::socket& socket() { return socket_; }
+        -:   51:
+        -:   52:    string start() // Reads data sent from client socket asynchronously
+        -:   53:    {
+        -:   54:        /*
+        -:   55:        socket_.async_read_some(boost::asio::buffer(data, max_length),
+        -:   56:                                boost::bind(&tcp_connection::handle_read, shared_from_this(),
+        -:   57:                                            boost::asio::placeholders::error,
+        -:   58:                                            boost::asio::placeholders::bytes_transferred));
+        -:   59:
+        -:   60:
+        -:   61:        StringReader();
+        -:   62:        */
+        -:   63:    }
+        -:   64:
+        3:   65:    string StringReader(MockClient& cl) // Reads string received to another string and ends if it detects ','
+        -:   66:    {
+        3:   67:        string typeS;
+        3:   68:        char* dat = cl.send_message();
+        -:   69:
+       25:   70:        for (int i = 0; i < 8; i++) {
+       23:   71:            if (*(dat+i) != ',') {
+       22:   72:                typeS.push_back(*(dat+i));
+        -:   73:            } else {
+        1:   74:                break;
+        -:   75:            }
+        -:   76:        }
+        3:   77:        return typeS;
+    =====:   78:    }
+        -:   79:
+        3:   80:    int send(MockClient& cl, string message, int length) // Sends a string to the client
+        -:   81:    {
+        -:   82:        /*
+        -:   83:        socket_.async_write_some(boost::asio::buffer(message, max_length),
+        -:   84:                                 boost::bind(&tcp_connection::handle_write, shared_from_this(),
+        -:   85:                                             boost::asio::placeholders::error,
+        -:   86:                                             boost::asio::placeholders::bytes_transferred));
+        -:   87:        */
+        -:   88:
+        3:   89:        cl.read_message(message, length);
+        3:   90:        return length;
+        -:   91:    }
+        -:   92:
+        -:   93:    void handle_read(const boost::system::error_code& err, size_t bytes_transferred)
+        -:   94:    // Executes code after receiving message
+        -:   95:    {
+        -:   96:        if (!err) {}
+        -:   97:
+        -:   98:        else {
+        -:   99:            cerr << "error: " << err.message() << endl;
+        -:  100:            socket_.close();
+        -:  101:        }
+        -:  102:    }
+        -:  103:
+        -:  104:    string handle_write(bool err, size_t bytes_transferred)
+        -:  105:    // Executes code after sending message
+        -:  106:    {
+        -:  107:        if (!err) {
+        -:  108:            memset(data, 0, 7);
+        -:  109:        } else {
+        -:  110:            return "error: ";
+        -:  111:        }
+        -:  112:    }
+        -:  113:};
+        -:  114:
+        -:  115:/**
+        -:  116: *  A TCP server that allows asynchronous client connections and calls the necessary functions to handle their
+        -:  117: *  connections
+        -:  118: */
+        -:  119:class tcp_server
+        -:  120:{
+        -:  121:private:
+        -:  122:    boost::asio::io_context& io_context_;
+        -:  123:    tcp::acceptor acceptor_;
+        -:  124:    string types_array[2];
+        -:  125:
+        -:  126:    int i = 0;
+        -:  127:    int j = 0;
+        -:  128:
+        -:  129:    void start_accept() // Creates sockets for incoming connections
+        -:  130:    {
+        -:  131:        tcp_connection::pointer new_connection = tcp_connection::create(io_context_);
+        -:  132:
+        -:  133:
+        -:  134:        acceptor_.async_accept(new_connection->socket(),
+        -:  135:                               boost::bind(&tcp_server::handle_accept, this,new_connection,
+        -:  136:                                           boost::asio::placeholders::error));
+        -:  137:    }
+        -:  138:
+        -:  139:public:
+        -:  140:    explicit tcp_server(boost::asio::io_context& io_context): io_context_(io_context),   // Constructor RUNS ONCE
+        -:  141:                                                              acceptor_(io_context, tcp::endpoint(tcp::v4(), 1234))
+        -:  142:    {
+        -:  143:        cout << "server running" << endl;
+        -:  144:
+        -:  145:        start_accept();
+        -:  146:    }
+        -:  147:
+        -:  148:    void handle_accept(tcp_connection::pointer new_connection, const boost::system::error_code& err)
+        -:  149:    // Runs everytime it receives a message from client, and it handles receiving a pair of cards
+        -:  150:    {
+        -:  151:        if (!err) {
+        -:  152:            cout << "Client connected" << endl;
+        -:  153:
+        -:  154:            if (i < 1) {
+        -:  155:                //types_array[j] = new_connection->start();
+        -:  156:                i++;
+        -:  157:                j++;
+        -:  158:            } else {
+        -:  159:                //types_array[j] = new_connection->start();
+        -:  160:                cout << types_array[0] << endl;
+        -:  161:                cout << types_array[1] << endl;
+        -:  162:                bool randBool = types_array[0] == types_array[1];
+        -:  163:
+        -:  164:                if (randBool == 0) {
+        -:  165:                    //new_connection->send("false");
+        -:  166:                } else {
+        -:  167:                    //new_connection->send("true");
+        -:  168:                }
+        -:  169:
+        -:  170:                fill_n(types_array, 2, "");
+        -:  171:                cout << randBool << endl;
+        -:  172:                i = 0;
+        -:  173:                j = 0;
+        -:  174:            }
+        -:  175:        }
+        -:  176:        start_accept();
+        -:  177:    }
+        -:  178:};
+        -:  179:
+        4:  180:TEST(ServerTest, readString)
+        -:  181:{
+        1:  182:    boost::asio::io_context io_context;
+        1:  183:    MockClient mockClient;
+        -:  184:
+        1:  185:    char typeArr[7] = {'b','u','c','k','e','t',','};
+        -:  186:
+        1:  187:    EXPECT_CALL(mockClient, send_message())
+        1:  188:    .Times(1)
+        1:  189:    .WillOnce(Return(typeArr));
+        -:  190:
+        1:  191:    tcp_connection server(io_context);
+       2*:  192:    EXPECT_EQ(server.StringReader(mockClient), "bucket");
+        1:  193:}
+------------------
+_ZN26ServerTest_readString_TestC2Ev:
+        1:  180:TEST(ServerTest, readString)
+------------------
+_ZN26ServerTest_readString_TestD0Ev:
+        1:  180:TEST(ServerTest, readString)
+------------------
+_ZN26ServerTest_readString_TestD2Ev:
+        1:  180:TEST(ServerTest, readString)
+------------------
+_ZN26ServerTest_readString_Test8TestBodyEv:
+        1:  180:TEST(ServerTest, readString)
+        -:  181:{
+        1:  182:    boost::asio::io_context io_context;
+        1:  183:    MockClient mockClient;
+        -:  184:
+        1:  185:    char typeArr[7] = {'b','u','c','k','e','t',','};
+        -:  186:
+        1:  187:    EXPECT_CALL(mockClient, send_message())
+        1:  188:    .Times(1)
+        1:  189:    .WillOnce(Return(typeArr));
+        -:  190:
+        1:  191:    tcp_connection server(io_context);
+       2*:  192:    EXPECT_EQ(server.StringReader(mockClient), "bucket");
+        1:  193:}
+------------------
+        -:  194:
+        4:  195:TEST(ServerTest, readStringNoComma)
+        -:  196:{
+        1:  197:    boost::asio::io_context io_context;
+        1:  198:    MockClient mockClient;
+        -:  199:
+        1:  200:    char array[4] = {'s','u','n'};
+        -:  201:
+        1:  202:    EXPECT_CALL(mockClient, send_message())
+        1:  203:    .Times(1)
+        1:  204:    .WillOnce(Return(array));
+        -:  205:
+        1:  206:    tcp_connection server(io_context);
+        2:  207:    EXPECT_EQ(server.StringReader(mockClient), "sun");
+        1:  208:}
+------------------
+_ZN33ServerTest_readStringNoComma_TestC2Ev:
+        1:  195:TEST(ServerTest, readStringNoComma)
+------------------
+_ZN33ServerTest_readStringNoComma_TestD0Ev:
+        1:  195:TEST(ServerTest, readStringNoComma)
+------------------
+_ZN33ServerTest_readStringNoComma_TestD2Ev:
+        1:  195:TEST(ServerTest, readStringNoComma)
+------------------
+_ZN33ServerTest_readStringNoComma_Test8TestBodyEv:
+        1:  195:TEST(ServerTest, readStringNoComma)
+        -:  196:{
+        1:  197:    boost::asio::io_context io_context;
+        1:  198:    MockClient mockClient;
+        -:  199:
+        1:  200:    char array[4] = {'s','u','n'};
+        -:  201:
+        1:  202:    EXPECT_CALL(mockClient, send_message())
+        1:  203:    .Times(1)
+        1:  204:    .WillOnce(Return(array));
+        -:  205:
+        1:  206:    tcp_connection server(io_context);
+        2:  207:    EXPECT_EQ(server.StringReader(mockClient), "sun");
+        1:  208:}
+------------------
+        -:  209:
+        4:  210:TEST(ServerTest, readEmptyMessage)
+        -:  211:{
+        1:  212:    boost::asio::io_context io_context;
+        1:  213:    MockClient mockClient;
+        -:  214:
+        1:  215:    char array[1] = "";
+        -:  216:
+        1:  217:    EXPECT_CALL(mockClient, send_message())
+        1:  218:    .Times(1)
+        1:  219:    .WillOnce(Return(array));
+        -:  220:
+        1:  221:    tcp_connection server(io_context);
+        2:  222:    EXPECT_EQ(server.StringReader(mockClient), "");
+        1:  223:}
+------------------
+_ZN32ServerTest_readEmptyMessage_TestC2Ev:
+        1:  210:TEST(ServerTest, readEmptyMessage)
+------------------
+_ZN32ServerTest_readEmptyMessage_TestD0Ev:
+        1:  210:TEST(ServerTest, readEmptyMessage)
+------------------
+_ZN32ServerTest_readEmptyMessage_TestD2Ev:
+        1:  210:TEST(ServerTest, readEmptyMessage)
+------------------
+_ZN32ServerTest_readEmptyMessage_Test8TestBodyEv:
+        1:  210:TEST(ServerTest, readEmptyMessage)
+        -:  211:{
+        1:  212:    boost::asio::io_context io_context;
+        1:  213:    MockClient mockClient;
+        -:  214:
+        1:  215:    char array[1] = "";
+        -:  216:
+        1:  217:    EXPECT_CALL(mockClient, send_message())
+        1:  218:    .Times(1)
+        1:  219:    .WillOnce(Return(array));
+        -:  220:
+        1:  221:    tcp_connection server(io_context);
+        2:  222:    EXPECT_EQ(server.StringReader(mockClient), "");
+        1:  223:}
+------------------
+        -:  224:
+        4:  225:TEST(ServerTest, writeData)
+        -:  226:{
+        1:  227:    boost::asio::io_context io_context;
+        1:  228:    MockClient mockClient;
+        -:  229:
+        1:  230:    string result = "true";
+        -:  231:
+        2:  232:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  233:    .Times(1);
+        -:  234:
+        1:  235:    tcp_connection server(io_context);
+       1*:  236:    EXPECT_EQ(server.send(mockClient, result, result.length()), result.length());
+        1:  237:}
+------------------
+_ZN25ServerTest_writeData_TestC2Ev:
+        1:  225:TEST(ServerTest, writeData)
+------------------
+_ZN25ServerTest_writeData_TestD0Ev:
+        1:  225:TEST(ServerTest, writeData)
+------------------
+_ZN25ServerTest_writeData_TestD2Ev:
+        1:  225:TEST(ServerTest, writeData)
+------------------
+_ZN25ServerTest_writeData_Test8TestBodyEv:
+        1:  225:TEST(ServerTest, writeData)
+        -:  226:{
+        1:  227:    boost::asio::io_context io_context;
+        1:  228:    MockClient mockClient;
+        -:  229:
+        1:  230:    string result = "true";
+        -:  231:
+        2:  232:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  233:    .Times(1);
+        -:  234:
+        1:  235:    tcp_connection server(io_context);
+       1*:  236:    EXPECT_EQ(server.send(mockClient, result, result.length()), result.length());
+        1:  237:}
+------------------
+        -:  238:
+        4:  239:TEST(ServerTest, writeDataWrongSize)
+        -:  240:{
+        1:  241:    boost::asio::io_context io_context;
+        1:  242:    MockClient mockClient;
+        -:  243:
+        1:  244:    string result = "true";
+        -:  245:
+        2:  246:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  247:            .Times(1);
+        -:  248:
+        1:  249:    tcp_connection server(io_context);
+        1:  250:    EXPECT_EQ(server.send(mockClient, result, result.length() - 1), result.length());
+        1:  251:}
+------------------
+_ZN34ServerTest_writeDataWrongSize_TestC2Ev:
+        1:  239:TEST(ServerTest, writeDataWrongSize)
+------------------
+_ZN34ServerTest_writeDataWrongSize_TestD0Ev:
+        1:  239:TEST(ServerTest, writeDataWrongSize)
+------------------
+_ZN34ServerTest_writeDataWrongSize_TestD2Ev:
+        1:  239:TEST(ServerTest, writeDataWrongSize)
+------------------
+_ZN34ServerTest_writeDataWrongSize_Test8TestBodyEv:
+        1:  239:TEST(ServerTest, writeDataWrongSize)
+        -:  240:{
+        1:  241:    boost::asio::io_context io_context;
+        1:  242:    MockClient mockClient;
+        -:  243:
+        1:  244:    string result = "true";
+        -:  245:
+        2:  246:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  247:            .Times(1);
+        -:  248:
+        1:  249:    tcp_connection server(io_context);
+        1:  250:    EXPECT_EQ(server.send(mockClient, result, result.length() - 1), result.length());
+        1:  251:}
+------------------
+        -:  252:
+        4:  253:TEST(ServerTest, writeEmptyData)
+        -:  254:{
+        1:  255:    boost::asio::io_context io_context;
+        1:  256:    MockClient mockClient;
+        -:  257:
+        1:  258:    string result = "";
+        -:  259:
+        2:  260:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  261:            .Times(1);
+        -:  262:
+        1:  263:    tcp_connection server(io_context);
+       1*:  264:    EXPECT_EQ(server.send(mockClient, result, result.length()), result.length());
+        1:  265:}
+------------------
+_ZN30ServerTest_writeEmptyData_TestC2Ev:
+        1:  253:TEST(ServerTest, writeEmptyData)
+------------------
+_ZN30ServerTest_writeEmptyData_TestD0Ev:
+        1:  253:TEST(ServerTest, writeEmptyData)
+------------------
+_ZN30ServerTest_writeEmptyData_TestD2Ev:
+        1:  253:TEST(ServerTest, writeEmptyData)
+------------------
+_ZN30ServerTest_writeEmptyData_Test8TestBodyEv:
+        1:  253:TEST(ServerTest, writeEmptyData)
+        -:  254:{
+        1:  255:    boost::asio::io_context io_context;
+        1:  256:    MockClient mockClient;
+        -:  257:
+        1:  258:    string result = "";
+        -:  259:
+        2:  260:    EXPECT_CALL(mockClient, read_message(result, result.length()))
+        1:  261:            .Times(1);
+        -:  262:
+        1:  263:    tcp_connection server(io_context);
+       1*:  264:    EXPECT_EQ(server.send(mockClient, result, result.length()), result.length());
+        1:  265:}
+------------------
+        -:  266:
+        1:  267:int main(int argc, char *argv[]) {
+        1:  268:    testing::InitGoogleTest(&argc, argv);
+        1:  269:    return RUN_ALL_TESTS();
+        -:  270:}
